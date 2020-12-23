@@ -55,6 +55,24 @@ const getPresignedUrl = (req, res) => {
   });
 };
 
-app.post("/generatePresignedUrl", (req, res) => getPresignedUrl(req, res));
+const getLatestImage = (req, res) => {
+  const bucketParams = {
+    Bucket: S3_BUCKET,
+  };
+  s3.listObjects(bucketParams, (err, data) => {
+    const files = data.Contents.sort((a, b) => a.LastModified < b.LastModified ? -1 : a.LastModified > b.LastModified ? 1 : 0)
+    console.log(files[files.length - 1])
+    const latest = files[files.length - 1]
+    const url = `https://${S3_BUCKET}.s3.amazonaws.com/${latest.Key}`
+    if (req.query.redirect) {
+      res.redirect(url)
+    } else {
+      res.status(200).json({ url: url })
+    }
+  })
+}
+
+app.post("/generatePresignedUrl", getPresignedUrl);
+app.get('/latest', getLatestImage)
 
 module.exports = app
