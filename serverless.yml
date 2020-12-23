@@ -1,5 +1,13 @@
 service: s3uploadserver
 
+plugins:
+  - serverless-apigw-binary
+
+custom:
+  apigwBinary:
+    types:
+      - '*/*'
+
 provider:
     name: aws
     runtime: nodejs12.x
