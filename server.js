@@ -1,4 +1,5 @@
 const express = require("express");
+const fetch = require('node-fetch')
 const AWS = require("aws-sdk");
 const awsConfig = require("./config-aws");
 const uuid = require("uuid");
@@ -66,6 +67,12 @@ const getLatestImage = (req, res) => {
     const url = `https://${S3_BUCKET}.s3.amazonaws.com/${latest.Key}`
     if (req.query.redirect) {
       res.redirect(url)
+    } else if (req.query.image) {
+      fetch(url)
+        .then(response => response.buffer())
+        .then(buffer => {
+          res.set({ 'Content-Type': 'image/png' }).send(buffer)
+        })
     } else {
       res.status(200).json({ url: url })
     }
