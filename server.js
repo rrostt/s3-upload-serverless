@@ -79,7 +79,28 @@ const getLatestImage = (req, res) => {
   })
 }
 
+const getImages = (req, res) => {
+  const { from, to } = req.query
+
+  console.log(from, to, new Date(from), new Date(to))
+
+  const bucketParams = {
+    Bucket: S3_BUCKET,
+  };
+  s3.listObjects(bucketParams, (err, data) => {
+    const images = data.Contents
+      .filter(({ LastModified: date }) => new Date(date) >= new Date(from) && new Date(date) <= new Date(to))
+      .sort((a, b) => a.LastModified < b.LastModified ? -1 : a.LastModified > b.LastModified ? 1 : 0)
+      .map(({ Key, LastModified }) => ({
+        time: LastModified,
+        url: `https://${S3_BUCKET}.s3.amazonaws.com/${Key}`
+      }))
+    res.json(images)
+  })
+}
+
 app.post("/generatePresignedUrl", getPresignedUrl);
+app.get('/images', getImages)
 app.get('/latest', getLatestImage)
 
 module.exports = app
