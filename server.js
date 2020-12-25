@@ -1,11 +1,13 @@
 const express = require("express");
 const fetch = require('node-fetch')
+const cors = require('cors')
 const AWS = require("aws-sdk");
 const awsConfig = require("./config-aws");
 const uuid = require("uuid");
 const app = express();
 var bodyParser = require("body-parser");
 
+app.use(cors())
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
@@ -90,6 +92,7 @@ const getImages = (req, res) => {
   s3.listObjects(bucketParams, (err, data) => {
     const images = data.Contents
       .filter(({ LastModified: date }) => new Date(date) >= new Date(from) && new Date(date) <= new Date(to))
+      .filter(({ Key }) => Key.endsWith('.png'))
       .sort((a, b) => a.LastModified < b.LastModified ? -1 : a.LastModified > b.LastModified ? 1 : 0)
       .map(({ Key, LastModified }) => ({
         time: LastModified,
