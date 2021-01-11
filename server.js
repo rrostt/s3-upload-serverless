@@ -104,7 +104,6 @@ const listPlantImages = ({ from, to, plantId }) =>
           .filter(({ LastModified: date }) => new Date(date) >= new Date(from) && new Date(date) <= new Date(to))
           .filter(({ Key }) => plantId || !Key.startsWith('plants/'))
           .filter(({ Key }) => Key.endsWith('.png'))
-          .sort((a, b) => a.LastModified < b.LastModified ? -1 : a.LastModified > b.LastModified ? 1 : 0)
           .map(({ Key, LastModified }) => ({
             time: LastModified,
             url: `https://${S3_BUCKET}.s3.amazonaws.com/${Key}`
@@ -113,7 +112,7 @@ const listPlantImages = ({ from, to, plantId }) =>
           bucketParams.ContinuationToken = data.NextContinuationToken
           getImages()
         } else {
-          resolve(images)
+          resolve(images.sort((a, b) => a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
         }
       })
     }
