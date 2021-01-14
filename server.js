@@ -82,7 +82,7 @@ const getLatestImage = (req, res) => {
             res.set({ 'Content-Type': 'image/png' }).send(buffer)
           })
       } else {
-        res.status(200).json({ url: url })
+        res.status(200).json(latest)
       }
     })
 }
