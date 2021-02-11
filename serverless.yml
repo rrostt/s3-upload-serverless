@@ -21,8 +21,12 @@ functions:
             - http:
                 path: /{proxy+}
                 method: GET
-                cors: true
+                # cors: true
             - http:
                 path: /{proxy+}
                 method: POST
-                cors: true
+                # cors: true
+            - http:
+                path: /{proxy+}
+                method: OPTIONS
+                # cors: true
