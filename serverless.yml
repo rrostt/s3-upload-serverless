@@ -28,5 +28,9 @@ functions:
                 # cors: true
             - http:
                 path: /{proxy+}
+                method: PUT
+                # cors: true
+            - http:
+                path: /{proxy+}
                 method: OPTIONS
                 # cors: true

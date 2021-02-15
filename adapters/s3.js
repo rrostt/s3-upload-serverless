@@ -2,6 +2,8 @@ const AWS = require("aws-sdk");
 const awsConfig = require("../config-aws");
 const uuid = require("uuid");
 
+const allowedImageTypes = ['jpg', 'jpeg', 'png']
+
 AWS.config.update({ region: awsConfig.region });
 
 const S3_BUCKET = awsConfig.bucketName;
@@ -12,22 +14,27 @@ const s3 = new AWS.S3({
   signatureVersion: "v4",
 });
 
-const getPresignedUrl = ({ prefix = 'plants', streamId, fileType: fileEnding }) => {
-  let fileType = fileEnding
-  if (fileType != ".jpg" && fileType != ".png" && fileType != ".jpeg") {
+const getImageTypeFromFileType = fileType => {
+  const dotSplit = fileType.split('.')
+  const slashSplit = fileType.split('/')
+  return dotSplit.length > 1 ? dotSplit[1] : slashSplit.length > 1 ? slashSplit[1] : ''
+}
+
+const getPresignedUrl = ({ prefix = 'plants', streamId, fileType }) => {
+  const imageType = getImageTypeFromFileType(fileType)
+
+  if (!allowedImageTypes.includes(imageType)) {
     throw new Error('Unknown file type. Must be jpg or png.')
   }
-
-  fileType = fileType.substring(1, fileType.length)
 
   const imageId = uuid.v4()
   const fileName = streamId ? `${prefix}/${streamId}/${imageId}` : imageId
 
   const s3Params = {
     Bucket: S3_BUCKET,
-    Key: `${fileName}.${fileType}`,
+    Key: `${fileName}.${imageType}`,
     Expires: 60 * 60,
-    ContentType: `image/${fileType}`,
+    ContentType: `image/${imageType}`,
     ACL: "public-read",
   }
 
@@ -41,7 +48,7 @@ const getPresignedUrl = ({ prefix = 'plants', streamId, fileType: fileEnding }) 
         message: "Url generated",
         uploadUrl: data,
         downloadUrl:
-          `https://${S3_BUCKET}.s3.amazonaws.com/${fileName}` + "." + fileType,
+          `https://${S3_BUCKET}.s3.amazonaws.com/${fileName}` + "." + imageType,
       }
       resolve(returnData)
     })
@@ -65,7 +72,7 @@ const listStreamImages = ({ from, to, streamId }) =>
         images.push(...data.Contents
           .filter(({ LastModified: date }) => new Date(date) >= new Date(from) && new Date(date) <= new Date(to))
           .filter(({ Key }) => streamId || !Key.startsWith('streams/'))
-          .filter(({ Key }) => Key.endsWith('.png'))
+          .filter(({ Key }) => allowedImageTypes.some(type => Key.endsWith(`.${type}`)))
           .map(({ Key, LastModified }) => ({
             time: LastModified,
             url: `https://${S3_BUCKET}.s3.amazonaws.com/${Key}`

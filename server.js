@@ -122,12 +122,21 @@ const getStreams = async (req, res) => {
 
 const addStream = async (req, res) => {
   const { title, description } = req.body
-  console.log('add stream', req.body)
+  if (!req.user) {
+    res.status(401).end()
+    return
+  }
   await streamsAdapter.addStream({ userId: req.user.id, title, description })
   res.end()
 }
 
 const getPresignedStreamUrl = async (req, res) => {
+  const stream = await streamsAdapter.getStream(req.body.streamId)
+  if (stream.userId != req.user.id) {
+    res.status(401).end()
+    return
+  }
+
   try {
     const urlInfo = await s3Adapter.getPresignedUrl({
       prefix: 'streams',
@@ -159,8 +168,15 @@ const getStreamImages = async (req, res) => {
 }
 
 const updateStream = async (req, res) => {
-  await streamsAdapter.updateStream(req.body)
-  res.end()
+  console.log('updating stream')
+  const inputStream = req.body
+  const stream = await streamsAdapter.getStream(inputStream.id)
+  if (stream.userId == req.user.id) {
+    await streamsAdapter.updateStream(inputStream)
+    res.end()
+  } else {
+    res.status(401).end()
+  }
 }
 
 const getToken = async (req, res) => {

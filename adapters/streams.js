@@ -48,7 +48,7 @@ const getFeaturedStreams = async () => {
 
 const updateStream = async stream => {
   const collection = await getCollection()
-  return collection.update(
+  return collection.updateOne(
     {_id: new ObjectId(stream.id)},
     {
       '$set': stream
