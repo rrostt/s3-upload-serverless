@@ -115,6 +115,11 @@ const auth = async (req, res, next) => {
 }
 
 const getStreams = async (req, res) => {
+  if (!req.user) {
+    res.status(401).end()
+    return
+  }
+
   const streams = await streamsAdapter.getStreamsByUserId(req.user.id)
   const streamsWithLatest = await Promise.all(streams.map(async stream => ({
     ...stream,
@@ -213,7 +218,8 @@ const getToken = async (req, res) => {
 }
 
 const getFeatured = async (req, res) => {
-  const streams = await streamsAdapter.getFeaturedStreams()
+  const streams = (await streamsAdapter.getFeaturedStreams())
+    .filter(({ id }) => ['6022c4058fabfe14be1aa838', '602a2f467a610700086b38d9'].includes(`${id}`))
   const streamsWithLatest = await Promise.all(streams.map(async stream => ({
     ...stream,
     latest: await s3Adapter.getLatest(stream.id),
