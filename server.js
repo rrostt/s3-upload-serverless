@@ -100,11 +100,15 @@ const auth = async (req, res, next) => {
   const auth = req.headers['authorization']
   const token = auth && auth.split(' ')[1]
 
-  if (token) {
-    req.user = jwt.verify(token, JWT_SECRET)
-    console.log('authed', req.user)
-  } else {
-    res.status(500).send('unauthed')
+  try {
+    if (token) {
+      req.user = jwt.verify(token, JWT_SECRET)
+      console.log('authed', req.user)
+    } else {
+      // res.status(500).send('unauthed')
+    }
+  } catch (_) {
+    //
   }
 
   next()
@@ -155,7 +159,7 @@ const getStream = async (req, res) => {
   console.log('getting strean', req.params.id)
   const stream = await streamsAdapter.getStream(req.params.id)
   stream.latest = await s3Adapter.getLatest(stream.id)
-  stream.owner = stream.userId == req.user.id
+  stream.owner = req.user && stream.userId == req.user.id
   res.json(stream)
 }
 
@@ -214,9 +218,17 @@ const getFeatured = async (req, res) => {
     ...stream,
     latest: await s3Adapter.getLatest(stream.id),
   })))
-  console.log('returns', streamsWithLatest)
   res.json(streamsWithLatest)
 
+}
+
+const deleteStream = async (req, res) => {
+  const stream = await streamsAdapter.getStream(req.params.id)
+  if (!req.user || stream.userId != req.user.id) {
+    res.status(401).end()
+  }
+  await streamsAdapter.deleteStream({ streamId: req.params.id })
+  res.end()
 }
 
 // app.post("/generatePresignedUrl", getPresignedUrl)
@@ -231,6 +243,7 @@ app.put('/streams', auth, updateStream) // update stream
 app.get('/streams', auth, getStreams) // get streams belonging to user
 app.get('/streams/:id', auth, getStream) // get a stream by id if public or granted access
 app.get('/streams/:id/images', auth, getStreamImages)
+app.delete('/streams/:id', auth, deleteStream)
 
 app.get('/featured', getFeatured) // get list of featured streams (basically all streams sorted by number of views/likes)
 // app.get('/users/:id', getUser)  // get user info and list of streams

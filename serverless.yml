@@ -32,5 +32,9 @@ functions:
                 # cors: true
             - http:
                 path: /{proxy+}
+                method: DELETE
+                # cors: true
+            - http:
+                path: /{proxy+}
                 method: OPTIONS
                 # cors: true

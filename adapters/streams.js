@@ -56,10 +56,15 @@ const updateStream = async stream => {
   )
 }
 
+const deleteStream = async ({ streamId }) => {
+  const collection = await getCollection()
+  return collection.deleteOne({ _id: new ObjectId(streamId) })
+}
 module.exports = {
   getStream,
   addStream,
   getStreamsByUserId,
   getFeaturedStreams,
   updateStream,
+  deleteStream,
 }
