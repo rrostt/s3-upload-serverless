@@ -5,8 +5,8 @@ const fetch = require('node-fetch')
 const cors = require('cors')
 const app = express();
 const google = require('./adapters/google')
-const users = require('./adapters/users')
-const streamsAdapter = require('./adapters/streams')
+const users = require('./adapters/usersMySql')
+const streamsAdapter = require('./adapters/streamsMySql')
 const s3Adapter = require('./adapters/s3')
 const jwt = require('jsonwebtoken')
 var bodyParser = require("body-parser");
@@ -18,83 +18,6 @@ app.use(cors())
 app.options("*", cors())
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-
-// const getPresignedUrl = async (req, res) => {
-//   try {
-//     const urlInfo = await s3Adapter.getPresignedUrl({ streamId: req.body.plantId, fileType: req.body.fileType })
-//     return res.status(201).json(urlInfo);
-//   } catch (e) {
-//     return res
-//       .status(403)
-//       .json({ success: false, message: e.message });
-//   }
-// }
-
-// const getLatestImage = (req, res) => {
-//   const { plantId } = req.query
-
-//   listPlantImages({ from: '2020-01-01', to: new Date(), plantId })
-//     .then(images => {
-//       if (images.length === 0) {
-//         res.status(200).json({})
-//         return
-//       }
-//       const latest = images.sort((a, b) => a.LastModified < b.LastModified ? -1 : a.LastModified > b.LastModified ? 1 : 0)[images.length - 1]
-//       const url = latest.url
-//       if (req.query.redirect) {
-//         res.redirect(url)
-//       } else if (req.query.image) {
-//         fetch(url)
-//           .then(response => response.buffer())
-//           .then(buffer => {
-//             res.set({ 'Content-Type': 'image/png' }).send(buffer)
-//           })
-//       } else {
-//         res.status(200).json(latest)
-//       }
-//     })
-// }
-
-// const listPlantImages = ({ from, to, plantId }) =>
-//   new Promise((resolve, reject) => {
-//     const bucketParams = {
-//       Bucket: S3_BUCKET,
-//     };
-//     if (plantId) {
-//       bucketParams.Prefix = `plants/${plantId}/`
-//     }
-//     let images = []
-//     const getImages = () => {
-//       s3.listObjectsV2(bucketParams, (err, data) => {
-//         if (err) reject(err)
-
-//         images.push(...data.Contents
-//           .filter(({ LastModified: date }) => new Date(date) >= new Date(from) && new Date(date) <= new Date(to))
-//           .filter(({ Key }) => plantId || !Key.startsWith('plants/'))
-//           .filter(({ Key }) => Key.endsWith('.png'))
-//           .map(({ Key, LastModified }) => ({
-//             time: LastModified,
-//             url: `https://${S3_BUCKET}.s3.amazonaws.com/${Key}`
-//           })))
-//         if (data.NextContinuationToken) {
-//           bucketParams.ContinuationToken = data.NextContinuationToken
-//           getImages()
-//         } else {
-//           resolve(images.sort((a, b) => a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
-//         }
-//       })
-//     }
-//     getImages()
-//   })
-
-// const getImages = (req, res) => {
-//   const { from, to, plantId } = req.query
-
-//   console.log(from, to, new Date(from), new Date(to))
-
-//   listPlantImages({ from, to, plantId })
-//     .then(images => res.json(images))
-// }
 
 const auth = async (req, res, next) => {
   const auth = req.headers['authorization']
@@ -196,7 +119,6 @@ const getToken = async (req, res) => {
     try {
       const data = await google.verifyAndParseToken(googleTokenId)
       const user = await users.getOrCreateUser(data.email)
-      user.id = user._id
       const token = jwt.sign(user, JWT_SECRET)
       res.json({token})
     } catch (e) {
@@ -208,7 +130,6 @@ const getToken = async (req, res) => {
     console.log({email, googleAccessToken})
     if (email) {
       const user = await users.getOrCreateUser(email)
-      user.id = user._id
       const token = jwt.sign(user, JWT_SECRET)
       res.json({token})
     } else {
