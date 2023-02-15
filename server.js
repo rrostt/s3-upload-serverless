@@ -6,7 +6,7 @@ const cors = require('cors')
 const app = express();
 const google = require('./adapters/google')
 const users = require('./adapters/usersMySql')
-const streamsAdapter = require('./adapters/streamsMySql')
+const streamsAdapter = require('./adapters/streamsS3')
 const s3Adapter = require('./adapters/s3')
 const jwt = require('jsonwebtoken')
 var bodyParser = require("body-parser");
@@ -46,7 +46,7 @@ const getStreams = async (req, res) => {
   const streams = await streamsAdapter.getStreamsByUserId(req.user.id)
   const streamsWithLatest = await Promise.all(streams.map(async stream => ({
     ...stream,
-    latest: await s3Adapter.getLatest(stream.id),
+    latest: await s3Adapter.getLatest({ prefix: `streams/${stream.id}/` }),
   })))
   console.log('returns', streamsWithLatest)
   res.json(streamsWithLatest)
@@ -63,8 +63,9 @@ const addStream = async (req, res) => {
 }
 
 const getPresignedStreamUrl = async (req, res) => {
-  const stream = await streamsAdapter.getStream(req.body.streamId)
-  if (stream.userId != req.user.id) {
+  const stream = await streamsAdapter.getStream({ id: req.body.streamId })
+  console.log('stream', stream)
+  if (!stream || stream.userid != req.user.id) {
     res.status(401).end()
     return
   }
@@ -85,25 +86,31 @@ const getPresignedStreamUrl = async (req, res) => {
 
 const getStream = async (req, res) => {
   console.log('getting strean', req.params.id)
-  const stream = await streamsAdapter.getStream(req.params.id)
-  stream.latest = await s3Adapter.getLatest(stream.id)
-  stream.owner = req.user && stream.userId == req.user.id
-  res.json(stream)
+  try {
+    const stream = await streamsAdapter.getStream({ id: req.params.id })
+    console.log('got stream', stream)
+    stream.latest = await s3Adapter.getLatest({ prefix: `streams/${stream.id}/`})
+    stream.owner = req.user && stream.userid == req.user.id
+    res.json(stream)
+  } catch (e) {
+    console.log(e)
+    res.status(404).end()
+  }
 }
 
 const getStreamImages = async (req, res) => {
   const { from, to } = req.query
   const { id } = req.params
   console.log('get stream images', from, to, id)
-  const images = await s3Adapter.listStreamImages({ streamId: id, from, to })
+  const images = await s3Adapter.listStreamImages({ prefix: `streams/${id}/`, from, to })
   res.json(images)
 }
 
 const updateStream = async (req, res) => {
   console.log('updating stream')
   const inputStream = req.body
-  const stream = await streamsAdapter.getStream(inputStream.id)
-  if (stream.userId == req.user.id) {
+  const stream = await streamsAdapter.getStream({ id: inputStream.id })
+  if (stream.userid == req.user.id) {
     await streamsAdapter.updateStream(inputStream)
     res.end()
   } else {
@@ -118,7 +125,11 @@ const getToken = async (req, res) => {
   if (googleTokenId) {
     try {
       const data = await google.verifyAndParseToken(googleTokenId)
-      const user = await users.getOrCreateUser(data.email)
+      // const user = await users.getOrCreateUser(data.email)
+      const user = {
+        id: data.email,
+        email: data.email,
+      }
       const token = jwt.sign(user, JWT_SECRET)
       res.json({token})
     } catch (e) {
@@ -129,7 +140,11 @@ const getToken = async (req, res) => {
     const email = await google.getEmailFromAccessToken(googleAccessToken)
     console.log({email, googleAccessToken})
     if (email) {
-      const user = await users.getOrCreateUser(email)
+      // const user = await users.getOrCreateUser(email)
+      const user = {
+        id: email,
+        email,
+      }
       const token = jwt.sign(user, JWT_SECRET)
       res.json({token})
     } else {
@@ -139,22 +154,22 @@ const getToken = async (req, res) => {
 }
 
 const getFeatured = async (req, res) => {
-  const streams = (await streamsAdapter.getFeaturedStreams())
-    .filter(({ id }) => ['6022c4058fabfe14be1aa838', '602a2f467a610700086b38d9'].includes(`${id}`))
-  const streamsWithLatest = await Promise.all(streams.map(async stream => ({
-    ...stream,
-    latest: await s3Adapter.getLatest(stream.id),
-  })))
-  res.json(streamsWithLatest)
-
+  // const streams = (await streamsAdapter.getFeaturedStreams())
+  //   .filter(({ id }) => ['6022c4058fabfe14be1aa838', '602a2f467a610700086b38d9'].includes(`${id}`))
+  // const streamsWithLatest = await Promise.all(streams.map(async stream => ({
+  //   ...stream,
+  //   latest: await s3Adapter.getLatest(stream.id),
+  // })))
+  // res.json(streamsWithLatest)
+  res.json([])
 }
 
 const deleteStream = async (req, res) => {
-  const stream = await streamsAdapter.getStream(req.params.id)
-  if (!req.user || stream.userId != req.user.id) {
+  const stream = await streamsAdapter.getStream({ id: req.params.id })
+  if (!req.user || stream.userid != req.user.id) {
     res.status(401).end()
   }
-  await streamsAdapter.deleteStream({ streamId: req.params.id })
+  await streamsAdapter.deleteStream({ stream })
   res.end()
 }
 
